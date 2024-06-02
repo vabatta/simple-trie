@@ -15,7 +15,7 @@ group("radix3", () => {
 	bench("not found", () => router.lookup("/not/found"));
 });
 
-const trie = new Trie<string[], string>(() => [], (store, data) => [...store, data]);
+const trie = new Trie<string>();
 
 trie.insert("/path", "this path");
 trie.insert("/path/:name", "named route");

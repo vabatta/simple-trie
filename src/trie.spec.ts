@@ -3,34 +3,9 @@ import { describe, it, expect } from 'bun:test';
 import { Trie } from './trie';
 
 describe("Trie", () => {
-	describe("holds custom data", () => {
-		it("should create a new instance of the factory function", () => {
-			const trie = new Trie<Set<string>, string>(() => new Set(), (store, data) => store.add(data));
-
-			expect(trie.root.data).toBeInstanceOf(Set);
-		});
-
-		it("should add the data to the store using the set function", () => {
-			const trie = new Trie<Set<string>, string>(() => new Set(), (store, data) => store.add(data));
-
-			trie.insert("/", "index");
-
-			expect(trie.lookup("/")?.[0].has("index")).toBe(true);
-		});
-
-		it("should add the data to the store using the set function for multiple data", () => {
-			const trie = new Trie<string[], string>(() => [], (store, data) => [...store, data]);
-
-			trie.insert("/", "index");
-			trie.insert("/", "index");
-
-			expect(trie.lookup("/")?.[0]).toEqual(["index", "index"]);
-		});
-	});
-
 	describe("lookup", () => {
 		it("should handle static paths", () => {
-			const trie = new Trie<string[], string>(() => [], (store, data) => [...store, data]);
+			const trie = new Trie<string>();
 			trie.insert("/", "index");
 			trie.insert("/users/dashboard", "users/dashboard");
 
@@ -41,7 +16,7 @@ describe("Trie", () => {
 		});
 
 		it("should handle param paths", () => {
-			const trie = new Trie<string[], string>(() => [], (store, data) => [...store, data]);
+			const trie = new Trie<string>();
 			trie.insert("/:id", ":id");
 			trie.insert("/:id/:org", ":id/:org");
 
@@ -51,8 +26,17 @@ describe("Trie", () => {
 			expect(trie.lookup("/not/found/nested")).toBeUndefined();
 		});
 
+		it("should handle param paths with different names", () => {
+			const trie = new Trie<string>();
+			trie.insert("/:id/:org", ":id/:org");
+			trie.insert("/:name/:surname", ":name/:surname");
+
+			expect(trie.lookup("/1/abc")).toEqual([[":id/:org", ":name/:surname"], [{ id: "1", org: "abc" }, { name: "1", surname: "abc" }]]);
+			expect(trie.lookup("/john/doe")).toEqual([[":id/:org", ":name/:surname"], [{ id: "john", org: "doe" }, { name: "john", surname: "doe" }]]);
+		});
+
 		it("should handle mixed static and params paths", () => {
-			const trie = new Trie<string[], string>(() => [], (store, data) => [...store, data]);
+			const trie = new Trie<string>();
 			trie.insert("/users/:id/admin/:org", "users/:id/admin/:org");
 			trie.insert("/users/:id/dashboard", "users/:id/dashboard");
 			trie.insert("/users/:id", "users/:id");
@@ -65,16 +49,22 @@ describe("Trie", () => {
 		});
 
 		it("should handle wildcard paths", () => {
-			const trie = new Trie<string[], string>(() => [], (store, data) => [...store, data]);
+			const trie = new Trie<string>();
 			trie.insert("/*wildcard", "*wildcard");
 
-			// expect(trie.lookup("/")).toBeUndefined();
-			// expect(trie.recursiveParams("/")).toEqual([["*wildcard"], [{ wildcard: "" }]]);
 			expect(trie.lookup("/anything/even/deeply/nested")).toEqual([["*wildcard"], [{ wildcard: "anything/even/deeply/nested" }]]);
 		});
 
+		it("should handle wildcard paths with different names", () => {
+			const trie = new Trie<string>();
+			trie.insert("/*wildcard", "*wildcard");
+			trie.insert("/*resource", "*resource");
+
+			expect(trie.lookup("/deeply/nested")).toEqual([["*wildcard", "*resource"], [{ wildcard: "deeply/nested" }, { resource: "deeply/nested" }]]);
+		});
+
 		it("should handle mixed static and wildcard paths", () => {
-			const trie = new Trie<string[], string>(() => [], (store, data) => [...store, data]);
+			const trie = new Trie<string>();
 			trie.insert("/users/*wildcard", "users/*wildcard");
 			trie.insert("/users/assets/*wildcard", "users/assets/*wildcard");
 
@@ -85,9 +75,8 @@ describe("Trie", () => {
 		});
 
 		it("should handle mixed param and wildcard paths", () => {
-			const trie = new Trie<string[], string>(() => [], (store, data) => [...store, data]);
+			const trie = new Trie<string>();
 			trie.insert("/:id/*wildcard", ":id/*wildcard");
-			// trie.insert("/:user/:org/*wildcard", ":user/:org/*wildcard");
 
 			expect(trie.lookup("/1/assets/tag")).toEqual([[":id/*wildcard"], [{ id: "1", wildcard: "assets/tag" }]]);
 			expect(trie.lookup("/1/assets/deeply/nested/tag")).toEqual([[":id/*wildcard"], [{ id: "1", wildcard: "assets/deeply/nested/tag" }]]);
@@ -96,7 +85,7 @@ describe("Trie", () => {
 		});
 
 		it("should handle mixed static, param and wildcard paths", () => {
-			const trie = new Trie<string[], string>(() => [], (store, data) => [...store, data]);
+			const trie = new Trie<string>();
 			trie.insert("/users/dashboard/admin/overview", "users/dashboard/admin/overview");
 			trie.insert("/users/:id/admin/:org", "users/:id/admin/:org");
 			trie.insert("/users/*wildcard", "users/*wildcard");

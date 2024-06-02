@@ -1,38 +1,33 @@
-export abstract class TrieNode<T extends unknown> {
-	readonly children: Map<string, TrieNode<T>> = new Map();
-	data: T;
-	names: string[][] = [];
+export abstract class TrieNode<D extends unknown> {
+	readonly name: string;
+	readonly children: Map<string, TrieNode<D>> = new Map();
+	readonly data: D[] = [];
+	readonly names: string[][] = [];
 	end: boolean = false;
 
-	constructor(data: T) {
-		this.data = data;
+	constructor(name: string) {
+		this.name = name;
 	}
 }
 
-export class StaticTrieNode<T extends unknown> extends TrieNode<T> { }
-export class ParamTrieNode<T extends unknown> extends TrieNode<T> { }
-export class WildcardTrieNode<T extends unknown> extends TrieNode<T> { }
-type Params<T extends ReadonlyArray<string>, V = string> = {
-	[K in T[number]]: V;
+export class StaticTrieNode<D extends unknown> extends TrieNode<D> { }
+export class ParamTrieNode<D extends unknown> extends TrieNode<D> { }
+export class WildcardTrieNode<D extends unknown> extends TrieNode<D> { }
+type Params<P extends ReadonlyArray<string>, V = string> = {
+	[K in P[number]]: V;
 } & Record<string, V>;
 
-export class Trie<T extends unknown, D extends unknown> {
-	readonly #root: Readonly<TrieNode<T>>;
-	readonly #store: () => T;
-	readonly #set: (store: T, data: D, path: string) => T;
+type ParamsKeys = ReadonlyArray<string>;
 
-	public constructor(store: () => T, set: (store: T, data: D, path: string) => T) {
-		this.#store = store;
-		this.#set = set;
-		this.#root = new StaticTrieNode(this.#store());
-	}
+export class Trie<D extends unknown> {
+	readonly #root: Readonly<TrieNode<D>> = new StaticTrieNode("<root>");
 
-	public get root(): Readonly<TrieNode<T>> {
+	public get root(): Readonly<TrieNode<D>> {
 		return this.#root;
 	}
 
 	public insert(path: string, data: D): void {
-		let currentNode: TrieNode<T> = this.#root;
+		let currentNode: TrieNode<D> = this.#root;
 		const parts = path.split("/");
 
 		const names: string[] = [];
@@ -40,37 +35,37 @@ export class Trie<T extends unknown, D extends unknown> {
 		for (const part of parts) {
 			if (part.startsWith(":")) {
 				if (!currentNode.children.has(":")) {
-					currentNode.children.set(":", new ParamTrieNode(this.#store()));
+					currentNode.children.set(":", new ParamTrieNode(part));
 				}
 				currentNode = currentNode.children.get(":")!;
 				names.push(part.slice(1));
 			} else if (part.startsWith("*")) {
 				if (!currentNode.children.has("*")) {
-					currentNode.children.set("*", new WildcardTrieNode(this.#store()));
+					currentNode.children.set("*", new WildcardTrieNode(part));
 				}
 				currentNode = currentNode.children.get("*")!;
 				names.push(part.slice(1));
 				break; // Wildcard nodes are always the last node
 			} else {
 				if (!currentNode.children.has(part)) {
-					currentNode.children.set(part, new StaticTrieNode(this.#store()));
+					currentNode.children.set(part, new StaticTrieNode(part));
 				}
 				currentNode = currentNode.children.get(part)!;
 			}
 		}
 
+		currentNode.data.push(data);
 		currentNode.names.push(names);
 		currentNode.end = true;
-		currentNode.data = this.#set(currentNode.data, data, path);
 	}
 
-	public lookup<K extends ReadonlyArray<string>>(path: string): [data: T, parameters: Params<K>[]] | undefined {
+	public lookup<K extends ParamsKeys>(path: string): [data: D[], parameters: Params<K>[]] | undefined {
 		const parts = path.split("/");
 
 		return this.#lookup<K>(parts, [], this.#root);
 	}
 
-	#lookup<K extends ReadonlyArray<string>>(parts: string[], paramValues: string[], node: TrieNode<T>): [data: T, parameters: Params<K>[]] | undefined {
+	#lookup<K extends ParamsKeys>(parts: string[], paramValues: string[], node: TrieNode<D>): [data: D[], parameters: Params<K>[]] | undefined {
 		if (parts.length === 0) {
 			const params = paramValues.length > 0 ? node.names.map((names) => {
 				const result: Record<string, string> = {};
