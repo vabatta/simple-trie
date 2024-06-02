@@ -1,0 +1,15 @@
+{
+  "name": "bao-framework",
+  "module": "index.ts",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "type": "module",
+  "dependencies": {
+    "mitata": "^0.1.11",
+    "radix3": "^1.1.2"
+  }
+}

@@ -1,0 +1,35 @@
+{
+	"name": "Bun",
+	"dockerComposeFile": "docker-compose.yaml",
+	"service": "devcontainer",
+	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+	// Features to add to the dev container. More info: https://containers.dev/features.
+	"features": {
+		"ghcr.io/devcontainers/features/git:1": {
+			"version": "2.44.0"
+		},
+		"ghcr.io/vabatta/devcontainer-features/bun:1": {
+			"tag": "bun-v1.1.8"
+		}
+	},
+	"remoteUser": "vscode",
+	"containerUser": "vscode",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				// "yoavbls.pretty-ts-errors",
+				// "antfu.iconify",
+				// "antfu.unocss",
+				// "antfu.vite",
+				// "dbaeumer.vscode-eslint",
+				// "ExodiusStudios.comment-anchors",
+				// "joshbolduc.commitlint",
+				// "GitHub.copilot",
+				// "GitHub.copilot-chat",
+				// "antfu.goto-alias",
+				// "antfu.file-nesting",
+				// "antfu.treeshake-visualizer"
+			]
+		}
+	}
+}

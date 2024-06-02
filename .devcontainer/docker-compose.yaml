@@ -1,0 +1,9 @@
+version: "3.8"
+
+services:
+  devcontainer:
+    image: mcr.microsoft.com/devcontainers/base:debian-11
+    volumes:
+      - ../..:/workspaces:cached
+      - ~/.config/git:/home/vscode/.config/git:ro
+    command: sleep infinity
