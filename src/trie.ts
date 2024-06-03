@@ -59,26 +59,32 @@ export class Trie<D extends unknown> {
 		currentNode.end = true;
 	}
 
-	public lookup<K extends ParamsKeys>(path: string): [data: D[], parameters: Params<K>[]] | undefined {
+	public lookup<K extends ParamsKeys>(path: string): { data: D, parameters?: Params<K> }[] | undefined {
 		const parts = path.split("/");
 
 		return this.#lookup<K>(parts, [], this.#root);
 	}
 
-	#lookup<K extends ParamsKeys>(parts: string[], paramValues: string[], node: TrieNode<D>): [data: D[], parameters: Params<K>[]] | undefined {
+	#lookup<K extends ParamsKeys>(parts: string[], paramValues: string[], node: TrieNode<D>): { data: D, parameters?: Params<K> }[] | undefined {
 		if (parts.length === 0) {
-			const params = paramValues.length > 0 ? node.names.map((names) => {
-				const result: Record<string, string> = {};
+			const result = node.data.map((data, index) => {
+				if (paramValues.length > 0) {
+					const params: Record<string, string> = {};
+					let walkParamIndex = 0;
 
-				names.forEach((name, index) => {
-					// TODO: handle multiple values for the same param name?
-					result[name] = paramValues[index];
-				});
+					node.names[index].forEach((name) => {
+						// TODO: handle multiple values for the same param name?
+						params[name] = paramValues[walkParamIndex++];
+					});
 
-				return result as Params<K>;
-			}) : [];
+					return { data, parameters: params as Params<K> };
+				} else {
+					return { data };
+				}
+			});
 
-			return node.end ? [node.data, params] : undefined;
+			// node.data.map((data, index) => ({ data, parameters: params[index] }))
+			return node.end ? result : undefined;
 		}
 
 		const [currentPart, ...restParts] = parts;
@@ -103,7 +109,7 @@ export class Trie<D extends unknown> {
 		if (node.children.has("*") && currentPart) {
 			const wildcardNode = node.children.get("*")!;
 
-			const params = wildcardNode.names.map((names) => {
+			const result = wildcardNode.names.map((names, index) => {
 				const result: Record<string, string> = {};
 				let walkParamIndex = 0;
 
@@ -113,10 +119,11 @@ export class Trie<D extends unknown> {
 					result[name] = value;
 				});
 
-				return result as Params<K>;
+				return { data: wildcardNode.data[index], parameters: result as Params<K> };
 			});
 
-			return wildcardNode.end ? [wildcardNode.data, params] : undefined;
+			// node.data.map((data, index) => ({ data, parameters: params[index] }))
+			return wildcardNode.end ? result : undefined;
 		}
 
 		return undefined;
