@@ -13,26 +13,49 @@ export abstract class TrieNode<D extends unknown> {
 export class StaticTrieNode<D extends unknown> extends TrieNode<D> { }
 export class ParamTrieNode<D extends unknown> extends TrieNode<D> { }
 export class WildcardTrieNode<D extends unknown> extends TrieNode<D> { }
-type Params<P extends ReadonlyArray<string>, V = string> = {
+
+type Params<P extends ParamsKeys, V = string> = {
 	[K in P[number]]: V;
 } & Record<string, V>;
 
 type ParamsKeys = ReadonlyArray<string>;
 
-export class Trie<D extends unknown> {
-	readonly #root: Readonly<TrieNode<D>> = new StaticTrieNode("<root>");
+export type TrieOptions = {
+	ignoreTrailingSlashes?: boolean;
+	ignoreConsecutiveSlashes?: boolean;
+};
 
-	public get root(): Readonly<TrieNode<D>> {
+export class Trie<D extends unknown> {
+	readonly #root: TrieNode<D> = new StaticTrieNode("<root>");
+	readonly #ignoreTrailingSlashes: boolean;
+	readonly #ignoreConsecutiveSlashes: boolean;
+
+	public get root(): TrieNode<D> {
 		return this.#root;
+	}
+
+	public constructor(readonly options: TrieOptions = {}) {
+		const { ignoreTrailingSlashes = false, ignoreConsecutiveSlashes = false } = options;
+
+		this.#ignoreTrailingSlashes = ignoreTrailingSlashes;
+		this.#ignoreConsecutiveSlashes = ignoreConsecutiveSlashes;
 	}
 
 	public insert(path: string, data: D): void {
 		let currentNode: TrieNode<D> = this.#root;
 		const parts = path.split("/");
 
+		while (this.#ignoreTrailingSlashes && parts.at(-1) === "") parts.pop();
+
 		const names: string[] = [];
 
-		for (const part of parts) {
+		for (let i = 0; i < parts.length; i++) {
+			const part = parts[i];
+
+			if (this.#ignoreConsecutiveSlashes && i > 0 && part === "" && i < parts.length - 1) {
+				continue;
+			}
+
 			if (part.startsWith(":")) {
 				if (!currentNode.children.has(":")) {
 					currentNode.children.set(":", new ParamTrieNode(part));
@@ -62,6 +85,8 @@ export class Trie<D extends unknown> {
 	public lookup<K extends ParamsKeys>(path: string): { data: D, parameters?: Params<K> }[] | undefined {
 		const parts = path.split("/");
 
+		while (this.#ignoreTrailingSlashes && parts.at(-1) === "") parts.pop();
+
 		return this.#lookup<K>(parts, [], this.#root);
 	}
 
@@ -83,11 +108,15 @@ export class Trie<D extends unknown> {
 				}
 			});
 
-			// node.data.map((data, index) => ({ data, parameters: params[index] }))
 			return node.end ? result : undefined;
 		}
 
 		const [currentPart, ...restParts] = parts;
+
+		// Ignore consecutive slashes (empty parts)
+		if (this.#ignoreConsecutiveSlashes && node !== this.#root && currentPart === "" && restParts.length > 0) {
+			return this.#lookup<K>(restParts, paramValues, node);
+		}
 
 		// Try static path first
 		if (node.children.has(currentPart)) {
@@ -122,7 +151,6 @@ export class Trie<D extends unknown> {
 				return { data: wildcardNode.data[index], parameters: result as Params<K> };
 			});
 
-			// node.data.map((data, index) => ({ data, parameters: params[index] }))
 			return wildcardNode.end ? result : undefined;
 		}
 
@@ -155,7 +183,7 @@ export function* prettyPrint<T extends unknown>(node: TrieNode<T>, prefix: strin
 		yield* prettyPrint(childNode, `${prefix}│   `);
 
 		if (childNode.end) {
-			yield `${prefix}│   └── (end)`;
+			yield `${prefix}│   └── (end) #${childNode.data.length}`;
 		} else {
 			yield `${prefix}│   ┴`;
 		}
